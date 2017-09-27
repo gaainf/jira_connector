@@ -13,3 +13,5 @@ For example, you can:
 * collect critical bugs and bugfixes for specific version
 * find bugs detected in production after official release
 * and many other features
+
+See the module [documentation](https://github.com/gaainf/jira_connector/blob/master/doc/jira_connector.md), for details.

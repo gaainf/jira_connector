@@ -1,52 +1,96 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from jira import JIRA
-from jira import JIRAError
+"""JiraConnector class extending [Jira Python](https://github.com/pycontribs/jira) module.
+
+This class provides methods to collect, group and analyse stats from Jira projects.
+
+## Usage
+
+```python
+from jira_connector import JiraConnector
+
+project = 'TRANS'
+jira_connect = JiraConnector(url='https://jira.atlassian.com', limit=10)
+
+filter_str = 'project = "%s" and resolution = Done order by key desc' % project
+issues = jira_connect.list_all(filter_str)
+
+for issue in issues:
+    print "%s - %s | created %s" % (issue.key, issue.fields.summary, issue.fields.created)
+```
+
+"""
+
 import re
 import datetime
-import dateutil.parser
-from distutils.version import LooseVersion, StrictVersion
+from distutils.version import LooseVersion
 import operator
+import itertools
+import dateutil.parser
+from jira import JIRA
+from jira import JIRAError
 
+__author__ = "Alexander Grechin"
+__version__ = "0.2"
+__maintainer__ = "Alexander Grechin"
+__license__ = "GNU GPL V2"
 
-# Enable debug
+# Uncomment to debug HTTP
 # import httplib
 # httplib.HTTPConnection.debuglevel=1
 
+# pylint: disable=R0904
+class JiraConnector(object):
+    """JiraConnector class
+        Attributes:
+            url (str): Jira URL like https://jira.atlassian.com
+            limit (int, optional): Global limit of captured issues, 100 by default
+            count (int, optional): Number of issues captured in the each iteration, 100 by deafult
+    """
 
-class JiraConnector:
-    """Jira connector class"""
+    url = 'https://jira.atlassian.com'
 
     def __init__(self, **kwargs):
+        """Initialization"""
         self.__dict__.update(kwargs)
         if 'url' not in self.__dict__ or self.url is None:
-            self.url = 'https://jira.rambler-co.ru'
+            self.url = 'https://jira.atlassian.com'
         if 'limit' not in self.__dict__ or self.limit is None:
             self.limit = 100
         if 'count' not in self.__dict__ or self.count is None:
             self.count = 100
         if self.count > self.limit:
             self.count = self.limit
+        self.limit = int(self.limit)
+        self.count = int(self.count)
         self.options = {'server': self.url}
-        self.basic_auth = (self.username, self.password)
+        if 'username' in self.__dict__ and 'password' in self.__dict__:
+            self.basic_auth = (self.username, self.password)
 
         if 'init_connect' not in self.__dict__ or self.init_connect is None or self.init_connect == True:
             self.connect()
 
     def connect(self):
+        """Implicitly connect to Jira"""
         try:
-            self.jira = JIRA(options=self.options, basic_auth=self.basic_auth)
+            if 'basic_auth' in self.__dict__:
+                self.jira = JIRA(options=self.options, basic_auth=self.basic_auth)
+            else:
+                self.jira = JIRA(options=self.options)
+            #self.jira = JIRA(options=self.options)
         except JIRAError as e:
-            m = re.search('<title>(.+)</title>', e.text)
+            m = re.search('<title>(.+)</title>', e.response)
             print e.status_code, m.group(1)
+            print e.status, e.message
             exit()
 
-    def get_items_from_description(self, issue, regex=r'(begun-.*\.rpm|[a-z0-9]{40})'):
-        """The function returns list of items from issue description by regexp
+    def get_items_from_description(self, issue, regex):
+        """Function returns list of items from issue description by regexp
 
         Args:
           issue (obj): Jira issue
+          regex (str): Description filter
 
         Returns:
           list: list of string items
@@ -58,13 +102,13 @@ class JiraConnector:
                 packets.append(m.group(1))
         return packets
 
-    def get_items_from_custom_field(self, ex_issue, regex=r'(begun-.*\.rpm)', custom_field='customfield_13405'):
-        """The function returns list of items from custom field of issue
+    def get_items_from_custom_field(self, ex_issue, regex, custom_field='customfield_13405'):
+        """Function returns list of items from custom field of issue
 
         Args:
           issue (obj): Jira extended issue
           regex (str): Custom regex
-          custom_field (str): Custom field name
+          custom_field (str): Custom field name ("attachment" by default)
 
         Returns:
           list: list of string items
@@ -79,7 +123,7 @@ class JiraConnector:
         return packets
 
     def get_attachment_filenames(self, ex_issue):
-        """The function returns list of attachment filenames
+        """Function returns list of attachment filenames
 
         Args:
           issue (obj): Jira extended issue
@@ -95,8 +139,8 @@ class JiraConnector:
                 attachments.append(attach.filename)
         return attachments
 
-    def get_items_from_attachment(self, ex_issue, regex=r'(begun-.*\.rpm)'):
-        """The function returns list of items from attachment filenames of issue
+    def get_items_from_attachment(self, ex_issue, regex):
+        """Function returns list of items from attachment filenames of issue
 
         Args:
           issue (obj): Jira extended issue
@@ -115,7 +159,7 @@ class JiraConnector:
         return items
 
     def get_issue_by_key(self, key):
-        """The function returns issue for a key
+        """Function returns issue for a key
 
         Args:
           key (str): An issue key
@@ -127,7 +171,7 @@ class JiraConnector:
         return self.jira.issue(key)
 
     def get_expand_issue(self, issue):
-        """The function returns expanded information for an issue
+        """Function returns expanded information for an issue
 
         Args:
           issue (obj): The jira issue object
@@ -139,7 +183,7 @@ class JiraConnector:
         return self.jira.issue(issue.key, expand='changelog')
 
     def get_last_resolver(self, issue, status='Developed'):
-        """The function returns the recent resolver name
+        """Function returns the recent resolver name
 
         Args:
           issue (obj): The jira issue object
@@ -162,7 +206,7 @@ class JiraConnector:
         return resolver
 
     def handle_all_issues(self, filter_str, method=None):
-        """The function handle list of issues from the filter
+        """Function handle list of issues from the filter
 
         Args:
           filter_str (str): Jira JQL filter
@@ -187,7 +231,7 @@ class JiraConnector:
         return all_issues
 
     def list_all(self, filter_str):
-        """The function returns list of issues from the filter
+        """Function returns list of issues from the filter
 
         Args:
           filter_str (str): Jira JQL filter
@@ -199,7 +243,7 @@ class JiraConnector:
         return self.handle_all_issues(filter_str)
 
     def print_all(self, filter_str):
-        """The function prints list of issues from the filter
+        """Function prints list of issues from the filter
 
         Args:
           filter_str (str): Jira JQL filter
@@ -213,7 +257,7 @@ class JiraConnector:
         self.handle_all_issues(filter_str, print_issues)
 
     def transit_all(self, filter_str, transition_name, dest_status):
-        """The function transit all issues from the filter
+        """Function transit all issues from the filter
 
         Args:
           filter_str (str): Jira JQL filter
@@ -230,7 +274,7 @@ class JiraConnector:
         self.handle_all_issues(filter_str, transit_issue)
 
     def get_transition_by_name(self, issue, status):
-        """The function returns index of transition by status name
+        """Function returns index of transition by status name
         Args:
           issue (obj): Jira issue object
           status (str): Issue status name
@@ -268,7 +312,7 @@ class JiraConnector:
                 'assignee': issue.fields.assignee.name}
 
     def get_reopen_list(self, changelog):
-        """The function returns list of all transitions to Reopen status
+        """Function returns list of all transitions to Reopen status
 
         Args:
           changelog (obj): Jira issue changelog
@@ -285,7 +329,7 @@ class JiraConnector:
         return all_items
 
     def get_reopen_count(self, changelog):
-        """The function returns count of all transitions to Reopen status
+        """Function returns count of all transitions to Reopen status
 
         Args:
           changelog (obj): Jira issue changelog
@@ -297,7 +341,7 @@ class JiraConnector:
         return len(self.get_reopen_list(changelog))
 
     def get_resolution_date(self, changelog, status='Developed'):
-        """The function returns the date of the last resolution
+        """Function returns the date of the last resolution
 
         Args:
           changelog (obj): Jira issue changelog
@@ -318,7 +362,7 @@ class JiraConnector:
         return date
 
     def parse_date(self, date_string):
-        """The function returns date object
+        """Function returns date object
 
         Args:
         date_string (string): date specifier
@@ -332,7 +376,7 @@ class JiraConnector:
         return dateutil.parser.parse(date_string)
 
     def get_total_date(self, date_list):
-        """The function returns total time period between dates in date_list
+        """Function returns total time period between dates in date_list
 
         Args:
           date_list (list): list of dates in string format
@@ -358,7 +402,7 @@ class JiraConnector:
         return result
 
     def get_average_date(self, date_list):
-        """The function returns average time period between dates in date_list
+        """Function returns average time period between dates in date_list
 
         Args:
           date_list (list): list of dates in string format
@@ -382,7 +426,7 @@ class JiraConnector:
         return result
 
     def get_issues_by_version(self, issues, version_string):
-        """The function returns list of issues filtered by version
+        """Function returns list of issues filtered by version
 
         Args:
           issues (list): list of Jira issues
@@ -398,7 +442,7 @@ class JiraConnector:
         return found_issues
 
     def numeric(self, a, b):
-        """The function implements proper comparison of versions
+        """Function implements proper comparison of versions
 
         Args:
           a (string): version specifier
@@ -415,7 +459,7 @@ class JiraConnector:
         return -1
 
     def get_first_release_version(self, versions, major_version):
-        """The function returns the first release version in sorted list by major version
+        """Function returns the first release version in sorted list by major version
 
         Args:
           versions (list): list of Jits project versions
@@ -434,7 +478,7 @@ class JiraConnector:
         return None
 
     def get_last_release_version(self, versions, major_version):
-        """The function returns the last release version in sorted list by major version
+        """Function returns the last release version in sorted list by major version
 
         Args:
           versions (list): list of Jits project versions
@@ -453,7 +497,7 @@ class JiraConnector:
         return None
 
     def get_release_date(self, versions, version_string):
-        """The function returns release date in filtered list by version
+        """Function returns release date in filtered list by version
 
         Args:
           versions (list): list of Jira project versions
@@ -471,7 +515,7 @@ class JiraConnector:
         return None
 
     def get_start_date(self, versions, version_string):
-        """The function returns start date in filtered list by version
+        """Function returns start date in filtered list by version
 
         Args:
           versions (list): list of Jira project versions
@@ -489,7 +533,7 @@ class JiraConnector:
         return None
 
     def get_bug_list(self, project, version_string):
-        """The function returns list of bugs in project filtered by version
+        """Function returns list of bugs in project filtered by version
 
         Args:
             project (string): Jira project name
@@ -504,7 +548,7 @@ class JiraConnector:
         return self.list_all(filter_str)
 
     def get_bug_crit_list(self, project, version_string):
-        """The function returns list of major, critical and blocker bugs in project filtered by version
+        """Function returns list of major, critical and blocker bugs in project filtered by version
 
         Args:
             project (string): Jira project name
@@ -519,7 +563,7 @@ class JiraConnector:
         return self.list_all(filter_str)
 
     def get_reopen_bug_list(self, project, version_string):
-        """The function returns list of reopened bugs in project filtered by version
+        """Function returns list of reopened bugs in project filtered by version
 
         Args:
             project (string): Jira project name
@@ -534,7 +578,7 @@ class JiraConnector:
         return self.list_all(filter_str)
 
     def get_bug_prod_list(self, project, version_string, date):
-        """The function returns list of production bugs in project filtered by version
+        """Function returns list of production bugs in project filtered by version
 
         Args:
             project (string): Jira project name
@@ -554,7 +598,7 @@ class JiraConnector:
         return self.list_all(filter_str)
 
     def get_bugfix_list(self, project, version_string):
-        """The function returns list of bugsxes in project filtered by version
+        """Function returns list of bugsxes in project filtered by version
 
         Args:
             project (string): Jira project name
@@ -569,7 +613,7 @@ class JiraConnector:
         return self.list_all(filter_str)
 
     def get_task_list(self, project, version_string):
-        """The function returns list of tasks in project filtered by version
+        """Function returns list of tasks in project filtered by version
 
         Args:
             project (string): Jira project name
@@ -582,3 +626,27 @@ class JiraConnector:
         filter_str = 'project = %s and issuetype != Bug and fixVersion = "%s" order by key desc' % (
             project, version_string)
         return self.list_all(filter_str)
+
+    def group_list(self, all_items, sort_field_name, group_field_name, reverse=True, sort_func=None):
+        """The function returns item list grouped by field
+
+        Args:
+            all_items (list): item list (list of dicts)
+            sort_field_name (string): field to sort
+            group_field_name (string): field to group
+            sort_func (string): comparing function
+
+        Returns:
+            list: list of Jira issues
+        """
+        temp_list = []
+        if sort_func is None:
+            sort_func = self.numeric
+        for key, items in itertools.groupby(sorted(all_items,
+                                                key=operator.itemgetter(
+                                                    sort_field_name),
+                                                cmp=sort_func,
+                                                reverse=reverse),
+                                            operator.itemgetter(group_field_name)):
+            temp_list.append(list(items))
+        return temp_list
