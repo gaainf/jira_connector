@@ -11,15 +11,15 @@ from jira_connector import JiraConnector
 project = 'TRANS'
 jira_connect = JiraConnector(url='https://jira.atlassian.com', limit=10)
 
-filter_str = 'project = "%s" and resolution = Done order by key desc' % project
-issues = jira_connect.list_all(filter_str)
+filter_string = 'project="%s" and resolution=Done order by key desc' % project
+issues = jira_connect.list_all(filter_string)
 
 for issue in issues:
     print "%s - %s | created %s" % (issue.key, issue.fields.summary, issue.fields.created)
 ```  
 
  __Author__: Alexander Grechin   
- __Version__: 0.2  
+ __Version__: 0.3  
  __License__: GNU GPL V2  
 
 
@@ -32,6 +32,7 @@ Attributes:
 url (str): Jira URL like https://jira.atlassian.com  
 limit (int, optional): Global limit of captured issues, 100 by default  
 count (int, optional): Number of issues captured in the each iteration, 100 by deafult  
+config (str): path to config file in YAML format  
 
 ### Methods:
 
@@ -290,16 +291,16 @@ list: list of Jira issues
 Function handle list of issues from the filter  
   
 Args:  
-filter_str (str): Jira JQL filter  
+filter_string (str): Jira JQL filter  
   
 Returns:  
 list: list of Jira issues  
 
-#### def `list_all(filter_str)`
+#### def `list_all(filter_string)`
 Function returns list of issues from the filter  
   
 Args:  
-filter_str (str): Jira JQL filter  
+filter_string (str): Jira JQL filter  
   
 Returns:  
 list: list of Jira issues  
@@ -309,7 +310,7 @@ Function implements proper comparison of versions
   
 Args:  
 a (string): version specifier  
-a (string): version specifier  
+b (string): version specifier  
   
 Returns:  
 int: +1 or -1 if a greater or less then b  
@@ -323,11 +324,11 @@ date_string (string): date specifier
 Returns:  
 datetime: date  
 
-#### def `print_all(filter_str)`
+#### def `print_all(filter_string)`
 Function prints list of issues from the filter  
   
 Args:  
-filter_str (str): Jira JQL filter  
+filter_string (str): Jira JQL filter  
 
 #### def `transit(issue, transition_name)`
 Execute jira transition by the transition name  
@@ -341,6 +342,6 @@ list: (issuetype, key, status, assegnee)
 Function transit all issues from the filter  
   
 Args:  
-filter_str (str): Jira JQL filter  
+filter_string (str): Jira JQL filter  
 transition_name (str): Name of transition in Jira workflow  
 dest_status (str): Destination status in Jira workflow  

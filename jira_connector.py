@@ -13,8 +13,8 @@ from jira_connector import JiraConnector
 project = 'TRANS'
 jira_connect = JiraConnector(url='https://jira.atlassian.com', limit=10)
 
-filter_str = 'project = "%s" and resolution = Done order by key desc' % project
-issues = jira_connect.list_all(filter_str)
+filter_string = 'project="%s" and resolution=Done order by key desc' % project
+issues = jira_connect.list_all(filter_string)
 
 for issue in issues:
     print "%s - %s | created %s" % (issue.key, issue.fields.summary, issue.fields.created)
@@ -32,7 +32,7 @@ from jira import JIRA
 from jira import JIRAError
 
 __author__ = "Alexander Grechin"
-__version__ = "0.2"
+__version__ = "0.3"
 __maintainer__ = "Alexander Grechin"
 __license__ = "GNU GPL V2"
 
@@ -47,12 +47,28 @@ class JiraConnector(object):
             url (str): Jira URL like https://jira.atlassian.com
             limit (int, optional): Global limit of captured issues, 100 by default
             count (int, optional): Number of issues captured in the each iteration, 100 by deafult
+            config (str): path to config file in YAML format, which add and replace direct values
     """
 
     url = 'https://jira.atlassian.com'
 
     def __init__(self, **kwargs):
         """Initialization"""
+        if 'config' in kwargs and kwargs['config'] is not None:
+            try:
+                with open(kwargs['config'], "r") as config_file:
+                    try:
+                        import yaml
+                        config = yaml.load(config_file)
+                        self.__dict__.update(config)
+                        for key in config:
+                            if key in kwargs and kwargs[key] is None:
+                                kwargs[key] = config[key]
+                    except yaml.YAMLError as e:
+                        print(e.problem)
+            except ImportError as e:
+                print e.message
+        #repeate to overwrite config
         self.__dict__.update(kwargs)
         if 'url' not in self.__dict__ or self.url is None:
             self.url = 'https://jira.atlassian.com'
@@ -209,7 +225,7 @@ class JiraConnector(object):
         """Function handle list of issues from the filter
 
         Args:
-          filter_str (str): Jira JQL filter
+          filter_string (str): Jira JQL filter
 
         Returns:
           list: list of Jira issues
@@ -230,23 +246,23 @@ class JiraConnector(object):
                     method(issues)
         return all_issues
 
-    def list_all(self, filter_str):
+    def list_all(self, filter_string):
         """Function returns list of issues from the filter
 
         Args:
-          filter_str (str): Jira JQL filter
+          filter_string (str): Jira JQL filter
 
         Returns:
            list: list of Jira issues
         """
 
-        return self.handle_all_issues(filter_str)
+        return self.handle_all_issues(filter_string)
 
-    def print_all(self, filter_str):
+    def print_all(self, filter_string):
         """Function prints list of issues from the filter
 
         Args:
-          filter_str (str): Jira JQL filter
+          filter_string (str): Jira JQL filter
         """
 
         def print_issues(issues):
@@ -260,7 +276,7 @@ class JiraConnector(object):
         """Function transit all issues from the filter
 
         Args:
-          filter_str (str): Jira JQL filter
+          filter_string (str): Jira JQL filter
           transition_name (str): Name of transition in Jira workflow
           dest_status (str): Destination status in Jira workflow
         """
@@ -446,7 +462,7 @@ class JiraConnector(object):
 
         Args:
           a (string): version specifier
-          a (string): version specifier
+          b (string): version specifier
 
         Returns:
           int: +1 or -1 if a greater or less then b
@@ -543,9 +559,13 @@ class JiraConnector(object):
             list: list of Jira issues
         """
 
-        filter_str = 'project = %s and issuetype = Bug and affectedVersion = "%s" order by key desc' % (
-            project, version_string)
-        return self.list_all(filter_str)
+        if 'bug_filter_string' not in self.__dict__:
+            filter_string = 'project="{project}" and issuetype = Bug and affectedVersion = "{version_string}" order by key desc'
+        else:
+            filter_string = self.bug_filter_string
+        return self.list_all(filter_string.format(
+            project=project,
+            version_string=version_string))
 
     def get_bug_crit_list(self, project, version_string):
         """Function returns list of major, critical and blocker bugs in project filtered by version
@@ -558,9 +578,13 @@ class JiraConnector(object):
             list: list of Jira issues
         """
 
-        filter_str = 'project = %s and issuetype = Bug and affectedVersion = "%s" and priority > Major order by key desc' % (
-            project, version_string)
-        return self.list_all(filter_str)
+        if 'bug_crit_filter_string' not in self.__dict__:
+            filter_string = 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and priority>Major order by key desc'
+        else:
+            filter_string = self.bug_crit_filter_string
+        return self.list_all(filter_string.format(
+            project=project,
+            version_string=version_string))
 
     def get_reopen_bug_list(self, project, version_string):
         """Function returns list of reopened bugs in project filtered by version
@@ -573,9 +597,13 @@ class JiraConnector(object):
             list: list of Jira issues
         """
 
-        filter_str = 'project = %s and issuetype = Bug and affectedVersion = "%s" and status was Reopened order by key desc' % (
-            project, version_string)
-        return self.list_all(filter_str)
+        if 'bug_reopen_filter_string' not in self.__dict__:
+            filter_string = 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and status was Reopened order by key desc'
+        else:
+            filter_string = self.bug_reopen_filter_string
+        return self.list_all(filter_string.format(
+            project=project,
+            version_string=version_string))
 
     def get_bug_prod_list(self, project, version_string, date):
         """Function returns list of production bugs in project filtered by version
@@ -593,9 +621,14 @@ class JiraConnector(object):
             return []
         datetime_object = self.parse_date(date)
         date_string = datetime_object.strftime("%Y-%m-%d %H:%M")
-        filter_str = 'project = %s and issuetype = Bug and affectedVersion = "%s" and created >= "%s" order by key desc' % (
-            project, version_string, date_string)
-        return self.list_all(filter_str)
+        if 'bug_prod_filter_string' not in self.__dict__:
+            filter_string = 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and created>="{date}" order by key desc'
+        else:
+            filter_string = self.bug_prod_filter_string
+        return self.list_all(filter_string.format(
+            project=project,
+            version_string=version_string,
+            date=date_string))
 
     def get_bugfix_list(self, project, version_string):
         """Function returns list of bugsxes in project filtered by version
@@ -608,9 +641,13 @@ class JiraConnector(object):
             list: list of Jira issues
         """
 
-        filter_str = 'project = %s and issuetype = Bug and fixVersion = "%s" order by key desc' % (
-            project, version_string)
-        return self.list_all(filter_str)
+        if 'bugfix_filter_string' not in self.__dict__:
+            filter_string = 'project="{project}" and issuetype=Bug and fixVersion="{version_string}" order by key desc'
+        else:
+            filter_string = self.bugfix_filter_string
+        return self.list_all(filter_string.format(
+            project=project,
+            version_string=version_string))
 
     def get_task_list(self, project, version_string):
         """Function returns list of tasks in project filtered by version
@@ -623,9 +660,13 @@ class JiraConnector(object):
             list: list of Jira issues
         """
 
-        filter_str = 'project = %s and issuetype != Bug and fixVersion = "%s" order by key desc' % (
-            project, version_string)
-        return self.list_all(filter_str)
+        if 'task_filter_string' not in self.__dict__:
+            filter_string = 'project="{project}" and issuetype!=Bug and fixVersion="{version_string}" order by key desc'
+        else:
+            filter_string = self.task_filter_string
+        return self.list_all(filter_string.format(
+            project=project,
+            version_string=version_string))
 
     def group_list(self, all_items, sort_field_name, group_field_name, reverse=True, sort_func=None):
         """The function returns item list grouped by field

@@ -1,0 +1,9 @@
+url: 'https://jira.atlassian.com'
+limit: 100
+count: 10
+bug_filter_string: 'project={project} and issuetype=Bug and affectedVersion="{version_string}" order by key desc'
+bug_crit_filter_string: 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and priority>Major order by key desc'
+reopen_bug_filter_string: 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and status was Reopened order by key desc'
+bug_prod_filter_string: 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and created>="{date}" order by key desc'
+bugfix_filter_string: 'project="{project}" and issuetype=Bug and fixVersion="{version_string}" order by key desc'
+task_filter_string: 'project="{project}" and issuetype!=Bug and fixVersion="{version_string}" order by key desc'
