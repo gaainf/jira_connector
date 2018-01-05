@@ -32,7 +32,7 @@ from jira import JIRA
 from jira import JIRAError
 
 __author__ = "Alexander Grechin"
-__version__ = "0.3"
+__version__ = "0.4"
 __maintainer__ = "Alexander Grechin"
 __license__ = "GNU GPL V2"
 
@@ -560,7 +560,9 @@ class JiraConnector(object):
         """
 
         if 'bug_filter_string' not in self.__dict__:
-            filter_string = 'project="{project}" and issuetype = Bug and affectedVersion = "{version_string}" order by key desc'
+            filter_string = 'project="{project}" and issuetype = Bug \
+                and affectedVersion = "{version_string}" \
+                order by key desc'
         else:
             filter_string = self.bug_filter_string
         return self.list_all(filter_string.format(
@@ -579,7 +581,9 @@ class JiraConnector(object):
         """
 
         if 'bug_crit_filter_string' not in self.__dict__:
-            filter_string = 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and priority>Major order by key desc'
+            filter_string = 'project="{project}" and issuetype=Bug \
+                and affectedVersion="{version_string}" and priority>Major \
+                order by key desc'
         else:
             filter_string = self.bug_crit_filter_string
         return self.list_all(filter_string.format(
@@ -598,7 +602,9 @@ class JiraConnector(object):
         """
 
         if 'bug_reopen_filter_string' not in self.__dict__:
-            filter_string = 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and status was Reopened order by key desc'
+            filter_string = 'project="{project}" and issuetype=Bug \
+                and affectedVersion="{version_string}" and status was Reopened \
+                order by key desc'
         else:
             filter_string = self.bug_reopen_filter_string
         return self.list_all(filter_string.format(
@@ -607,6 +613,7 @@ class JiraConnector(object):
 
     def get_bug_prod_list(self, project, version_string, date):
         """Function returns list of production bugs in project filtered by version
+It is corect if version release date equals its deploy date
 
         Args:
             project (string): Jira project name
@@ -622,7 +629,9 @@ class JiraConnector(object):
         datetime_object = self.parse_date(date)
         date_string = datetime_object.strftime("%Y-%m-%d %H:%M")
         if 'bug_prod_filter_string' not in self.__dict__:
-            filter_string = 'project="{project}" and issuetype=Bug and affectedVersion="{version_string}" and created>="{date}" order by key desc'
+            filter_string = 'project="{project}" and issuetype=Bug \
+                and affectedVersion="{version_string}" \
+                and created>="{date}" order by key desc'
         else:
             filter_string = self.bug_prod_filter_string
         return self.list_all(filter_string.format(
@@ -642,7 +651,8 @@ class JiraConnector(object):
         """
 
         if 'bugfix_filter_string' not in self.__dict__:
-            filter_string = 'project="{project}" and issuetype=Bug and fixVersion="{version_string}" order by key desc'
+            filter_string = 'project="{project}" and issuetype=Bug \
+                and fixVersion="{version_string}" order by key desc'
         else:
             filter_string = self.bugfix_filter_string
         return self.list_all(filter_string.format(
@@ -661,14 +671,31 @@ class JiraConnector(object):
         """
 
         if 'task_filter_string' not in self.__dict__:
-            filter_string = 'project="{project}" and issuetype!=Bug and fixVersion="{version_string}" order by key desc'
+            filter_string = 'project="{project}" and issuetype!=Bug \
+                and fixVersion="{version_string}" \
+                order by key desc'
         else:
             filter_string = self.task_filter_string
         return self.list_all(filter_string.format(
             project=project,
             version_string=version_string))
 
-    def group_list(self, all_items, sort_field_name, group_field_name, reverse=True, sort_func=None):
+    def get_deploy_task_list(self, project=''):
+        """Function returns list of deploy tasks created from date
+
+        Returns:
+            list: list of Jira issues
+        """
+
+        if 'deploy_filter_string' not in self.__dict__:
+            filter_string = 'project = {project} and resolution = Done \
+                and (summary ~ "Release") order by key desc'
+        else:
+            filter_string = self.deploy_filter_string
+        return self.list_all(filter_string.format(project=project))
+
+    def group_list(self, all_items, sort_field_name, group_field_name, \
+        reverse=True, sort_func=None):
         """The function returns item list grouped by field
 
         Args:
@@ -683,11 +710,11 @@ class JiraConnector(object):
         temp_list = []
         if sort_func is None:
             sort_func = self.numeric
-        for key, items in itertools.groupby(sorted(all_items,
-                                                key=operator.itemgetter(
-                                                    sort_field_name),
-                                                cmp=sort_func,
-                                                reverse=reverse),
-                                            operator.itemgetter(group_field_name)):
+        for key, items in itertools.groupby(
+                sorted(all_items,
+                       key=operator.itemgetter(sort_field_name),
+                       cmp=sort_func,
+                       reverse=reverse),
+                operator.itemgetter(group_field_name)):
             temp_list.append(list(items))
         return temp_list
