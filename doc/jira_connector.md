@@ -19,7 +19,7 @@ for issue in issues:
 ```  
 
  __Author__: Alexander Grechin   
- __Version__: 0.3  
+ __Version__: 0.4  
  __License__: GNU GPL V2  
 
 
@@ -32,7 +32,7 @@ Attributes:
 url (str): Jira URL like https://jira.atlassian.com  
 limit (int, optional): Global limit of captured issues, 100 by default  
 count (int, optional): Number of issues captured in the each iteration, 100 by deafult  
-config (str): path to config file in YAML format  
+config (str): path to config file in YAML format, which add and replace direct values  
 
 ### Methods:
 
@@ -42,6 +42,16 @@ Initialization
 
 #### def `connect()`
 Implicitly connect to Jira  
+
+#### def `convert_date(date_string, date_format=%Y-%m-%d %H:%M)`
+Function convert date string to specified format  
+  
+Args:  
+date_string (string): date specifier  
+date_format (string): date format specifier  
+  
+Returns:  
+string: formated date  
 
 #### def `get_attachment_filenames(ex_issue)`
 Function returns list of attachment filenames  
@@ -83,6 +93,7 @@ list: list of Jira issues
 
 #### def `get_bug_prod_list(project, version_string, date)`
 Function returns list of production bugs in project filtered by version  
+It is corect if version release date equals its deploy date  
   
 Args:  
 project (string): Jira project name  
@@ -98,6 +109,12 @@ Function returns list of bugsxes in project filtered by version
 Args:  
 project (string): Jira project name  
 version_string (string): version specifier  
+  
+Returns:  
+list: list of Jira issues  
+
+#### def `get_deploy_task_list(project=)`
+Function returns list of deploy tasks created from date  
   
 Returns:  
 list: list of Jira issues  

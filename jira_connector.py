@@ -391,6 +391,23 @@ class JiraConnector(object):
             return None
         return dateutil.parser.parse(date_string)
 
+    def convert_date(self, date_string, date_format="%Y-%m-%d %H:%M"):
+        """Function convert date string to specified format
+
+        Args:
+        date_string (string): date specifier
+        date_format (string): date format specifier
+
+        Returns:
+        string: formated date
+        """
+
+        if not date_string:
+            return None
+        else:
+            datetime_object = self.parse_date(date_string)
+            return datetime_object.strftime(date_format)
+
     def get_total_date(self, date_list):
         """Function returns total time period between dates in date_list
 
