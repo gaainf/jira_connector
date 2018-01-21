@@ -84,7 +84,8 @@ class JiraConnector(object):
         if 'username' in self.__dict__ and 'password' in self.__dict__:
             self.basic_auth = (self.username, self.password)
 
-        if 'init_connect' not in self.__dict__ or self.init_connect is None or self.init_connect == True:
+        if 'init_connect' not in self.__dict__ or \
+            self.init_connect is None or self.init_connect == True:
             self.connect()
 
     def connect(self):
@@ -233,7 +234,6 @@ class JiraConnector(object):
 
         all_issues = []
         start = 0
-        template = "{0:15}|{1:15}|{2:15}"
         while start < self.limit:
             issues = self.jira.search_issues(
                 filter_str, startAt=start, maxResults=self.count)
@@ -266,11 +266,13 @@ class JiraConnector(object):
         """
 
         def print_issues(issues):
+            """Internal print function"""
+
             for issue in issues:
                 print template.format(issue.fields.issuetype, issue.key, issue.fields.status)
         template = "{0:15}|{1:15}|{2:15}"
         print template.format("TYPE", "KEY", "STATUS")
-        self.handle_all_issues(filter_str, print_issues)
+        self.handle_all_issues(filter_string, print_issues)
 
     def transit_all(self, filter_str, transition_name, dest_status):
         """Function transit all issues from the filter
@@ -286,7 +288,8 @@ class JiraConnector(object):
                 print "%s\t\t%s - %s" % (issue.fields.issuetype, issue.key, issue.fields.status)
                 transit_list = self.transit(issue, transition_name)
                 if transit_list['status'] <> dest_status:
-                    print "WARNING: status was not changed, %s expected, %s is actual status" % (dest_status, transit_list['status'])
+                    print "WARNING: status was not changed, \
+                        %s expected, %s is actual status" % (dest_status, transit_list['status'])
         self.handle_all_issues(filter_str, transit_issue)
 
     def get_transition_by_name(self, issue, status):
@@ -454,8 +457,10 @@ class JiraConnector(object):
                     self.parse_date(date_list[i + 1])
                 diff_list.append(diff)
         if len(diff_list) > 0:
-            result = datetime.timedelta(seconds=(sum(diff_list,
-                                                     datetime.timedelta()).total_seconds() / len(diff_list)))
+            result = datetime.timedelta(
+                seconds=(sum(diff_list,
+                             datetime.timedelta()
+                            ).total_seconds() / len(diff_list)))
         return result
 
     def get_issues_by_version(self, issues, version_string):
@@ -485,7 +490,7 @@ class JiraConnector(object):
           int: +1 or -1 if a greater or less then b
         """
 
-        # if StrictVersion(x) > StrictVersion(y):
+        # insead of ```if StrictVersion(x) > StrictVersion(y):```
         # LooseVersion is used to support 1.1.1.1 instead of canonical 1.1.1
         if LooseVersion(a) > LooseVersion(b):
             return 1
