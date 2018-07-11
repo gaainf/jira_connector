@@ -97,9 +97,11 @@ class JiraConnector(object):
                 self.jira = JIRA(options=self.options)
             #self.jira = JIRA(options=self.options)
         except JIRAError as e:
-            m = re.search('<title>(.+)</title>', e.response)
-            print e.status_code, m.group(1)
-            print e.status, e.message
+            m = re.search('<title>(.+)</title>', e.response.content)
+            if m:
+                print e.status_code, m.group(1)
+            if e.message:
+                print e.status_code, e.message
             exit()
 
     def get_items_from_description(self, issue, regex):
